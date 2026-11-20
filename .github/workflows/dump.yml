@@ -1,0 +1,34 @@
+name: dump
+on: workflow_dispatch
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Preparar
+        run: mkdir game && unzip -o dump_input.zip -d game
+      - name: Baixar Cpp2IL
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release download --repo SamboyCoding/Cpp2IL --pattern '*Linux*' --dir tool || true
+      - name: Rodar Cpp2IL
+        continue-on-error: true
+        run: |
+          mkdir -p resultado
+          f=$(ls tool | grep -iv arm | head -1)
+          chmod +x tool/$f
+          ./tool/$f --game-path game --force-binary-path game/libil2cpp.so --force-metadata-path game/global-metadata.dat --force-unity-version 2022.3.62 --output-as diffable-cs --output-to out > resultado/log_cpp2il.txt 2>&1
+          d=$(find out -type d -name 'Assembly-CSharp*' | head -1)
+          if [ -n "$d" ]; then cp -r "$d" resultado/; fi
+      - name: Rodar Il2CppDumper
+        continue-on-error: true
+        run: |
+          git clone --depth 1 https://github.com/Perfare/Il2CppDumper
+          cd Il2CppDumper/Il2CppDumper
+          dotnet run -c Release -f net8.0 -- ../../game/libil2cpp.so ../../game/global-metadata.dat ../../out2 < /dev/null > ../../resultado/log_dumper.txt 2>&1
+          cp ../../out2/dump.cs ../../resultado/ || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: resultado
+          path: resultado
