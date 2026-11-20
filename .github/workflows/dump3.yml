@@ -1,0 +1,21 @@
+name: dump3
+on: workflow_dispatch
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          mkdir game resultado out2
+          unzip -o dump_input.zip -d game
+          git clone --depth 1 https://github.com/Perfare/Il2CppDumper
+          cd Il2CppDumper/Il2CppDumper
+          dotnet run -c Release -f net8.0 -- ../../game/libil2cpp.so ../../game/global-metadata.dat ../../out2 < /dev/null || true
+          cd ../..
+          find . -name dump.cs -not -path "./resultado/*" -exec cp {} resultado/ \;
+          ls -la out2 > resultado/lista.txt || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: resultado3
+          path: resultado
